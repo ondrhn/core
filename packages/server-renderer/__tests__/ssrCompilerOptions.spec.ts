@@ -36,6 +36,17 @@ describe('ssr: compiler options', () => {
     )
   })
 
+  test('v-model on custom element', async () => {
+    const app = createApp({
+      template: `<div><x-input v-model="val"/></div>`,
+      data: () => ({ val: 'hello' }),
+    })
+    app.config.compilerOptions.isCustomElement = tag => tag.startsWith('x-')
+    expect(await renderToString(app)).toBe(
+      `<div><x-input value="hello"></x-input></div>`,
+    )
+  })
+
   test('component.delimiters (deprecated)', async () => {
     const app = createApp({
       template: `<div>[[ 1 + 1 ]]</div>`,

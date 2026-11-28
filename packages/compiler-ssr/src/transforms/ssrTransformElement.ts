@@ -178,7 +178,13 @@ export const ssrTransformElement: NodeTransform = (node, context) => {
               ]),
             )
           }
-        } else if (node.tag === 'input') {
+        } else if (
+          node.tag === 'input' ||
+          // custom elements are bound like <input>, but only divert here when
+          // v-model is actually present so that directive content overrides
+          // below still apply
+          (context.isCustomElement(node.tag) && findVModel(node))
+        ) {
           // <input v-bind="obj" v-model>
           // we need to determine the props to render for the dynamic v-model
           // and merge it with the v-bind expression.

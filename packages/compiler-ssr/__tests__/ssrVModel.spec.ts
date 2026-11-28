@@ -1,7 +1,8 @@
+import { type CompilerOptions, DOMErrorCodes } from '@vue/compiler-dom'
 import { compile } from '../src'
 
-function compileWithWrapper(src: string) {
-  return compile(`<div>${src}</div>`)
+function compileWithWrapper(src: string, options?: CompilerOptions) {
+  return compile(`<div>${src}</div>`, options)
 }
 
 describe('ssr: v-model', () => {
@@ -476,5 +477,71 @@ describe('ssr: v-model', () => {
         }></div>\`)
       }"
     `)
+  })
+
+  describe('custom element', () => {
+    const isCustomElement = (tag: string) => tag === 'my-input'
+
+    test('text type', () => {
+      const onError = vi.fn()
+      const { code } = compileWithWrapper(`<my-input v-model="model"/>`, {
+        onError,
+        isCustomElement,
+      })
+      expect(onError).not.toHaveBeenCalled()
+      expect(code).toContain(`_ssrRenderAttr("value", _ctx.model)`)
+    })
+
+    test('type="checkbox"', () => {
+      const onError = vi.fn()
+      const { code } = compileWithWrapper(
+        `<my-input type="checkbox" v-model="model"/>`,
+        { onError, isCustomElement },
+      )
+      expect(onError).not.toHaveBeenCalled()
+      expect(code).toContain(`_ssrIncludeBooleanAttr`)
+      expect(code).toContain(`" checked"`)
+    })
+
+    test(':type="x"', () => {
+      const onError = vi.fn()
+      const { code } = compileWithWrapper(
+        `<my-input :type="x" v-model="model"/>`,
+        { onError, isCustomElement },
+      )
+      expect(onError).not.toHaveBeenCalled()
+      expect(code).toContain(`_ssrRenderDynamicModel(_ctx.x, _ctx.model, null)`)
+    })
+
+    test('v-bind="obj"', () => {
+      const onError = vi.fn()
+      const { code } = compileWithWrapper(
+        `<my-input v-bind="obj" v-model="model"/>`,
+        { onError, isCustomElement },
+      )
+      expect(onError).not.toHaveBeenCalled()
+      expect(code).toContain(`_ssrGetDynamicModelProps(_temp0, _ctx.model)`)
+    })
+
+    // #8112 the directive content override still applies when there is no
+    // v-model to merge
+    test('custom dir without children and without v-model', () => {
+      const { code } = compileWithWrapper(`<my-input v-xxx/>`, {
+        isCustomElement,
+      })
+      expect(code).toContain(`"textContent" in _temp0`)
+    })
+
+    test('still errors on other native elements', () => {
+      const onError = vi.fn()
+      compileWithWrapper(`<span v-model="model"></span>`, {
+        onError,
+        isCustomElement,
+      })
+      expect(onError).toHaveBeenCalledTimes(1)
+      expect(onError.mock.calls[0][0]).toMatchObject({
+        code: DOMErrorCodes.X_V_MODEL_ON_INVALID_ELEMENT,
+      })
+    })
   })
 })

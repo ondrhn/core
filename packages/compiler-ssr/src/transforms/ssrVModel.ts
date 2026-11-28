@@ -83,7 +83,9 @@ export const ssrTransformModel: DirectiveTransform = (dir, node, context) => {
 
   if (node.tagType === ElementTypes.ELEMENT) {
     const res: DirectiveTransformResult = { props: [] }
-    if (node.tag === 'input') {
+    // custom elements are bound like <input> on the client (see
+    // compiler-dom's transformModel), so mirror that here
+    if (node.tag === 'input' || context.isCustomElement(node.tag)) {
       const defaultProps = [
         // default value binding for text type inputs
         createObjectProperty(`value`, model),
